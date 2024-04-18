@@ -133,21 +133,17 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
   const session = await stripe.checkout.sessions.create({
     line_items: [
       {
-        price_data: {
-          currency: 'egp',
-          product_data: {
-            name: req.user.name,
-          },
-          unit_amount: cartPrice * 100,
-        },
+        name: req.user.name,
+        amount: cartPrice * 100,
+        currency: 'egp',
         quantity: 1,
       },
     ],
     mode: 'payment',
-     //success_url: `${req.protocol}://${req.get('host')}/user/allorders`,
-    success_url: `https://reactapp-red-kappa.vercel.app/user/allorders`,
-     //cancel_url: `${req.protocol}://${req.get('host')}/cart`,
-    cancel_url: `https://reactapp-red-kappa.vercel.app/cart`,
+    // success_url: `${req.protocol}://${req.get('host')}/orders`,
+    success_url: `https://reactapp-red-kappa.vercel.app//user/allorders`,
+    // cancel_url: `${req.protocol}://${req.get('host')}/cart`,
+    cancel_url: `https://reactapp-red-kappa.vercel.app//cart`,
     customer_email: req.user.email,
     client_reference_id: req.params.cartId,
     metadata: req.body.shippingAddress,
@@ -165,7 +161,7 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
 const createOrderCheckout = async (session) => {
   // 1) Get needed data from session
   const cartId = session.client_reference_id;
-  const checkoutAmount = session.amount_total / 100;
+  const checkoutAmount = session.display_items[0].amount / 100;
   const shippingAddress = session.metadata;
 
   // 2) Get Cart and User
@@ -196,7 +192,7 @@ const createOrderCheckout = async (session) => {
     await Product.bulkWrite(bulkOption, {});
 
     // 5) Clear cart
-    await Cart.findByIdAndDelete(cartId);
+    await Cart.findByIdAndDelete(cart._id);
   }
 };
 
@@ -205,15 +201,11 @@ const createOrderCheckout = async (session) => {
 // @access  From stripe
 exports.webhookCheckout = (req, res, next) => {
   const signature = req.headers['stripe-signature'].toString();
-  const header = stripe.webhooks.generateTestHeaderString({
-  JSON.stringify(req.body),
-  process.env.STRIPE_WEBHOOK_SECRET,
-});
   let event;
   try {
     event = stripe.webhooks.constructEvent(
-      JSON.stringify(req.body),
-      header,
+      req.body,
+      signature,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
