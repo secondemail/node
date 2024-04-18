@@ -116,8 +116,6 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 // @route   GET /api/orders/:cartId
 // @access  Private/User
 exports.checkoutSession = asyncHandler(async (req, res, next) => {
-    const taxPrice = 0;
-    const shippingPrice = 0;
   // 1) Get the currently cart
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
@@ -131,7 +129,6 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     ? cart.totalAfterDiscount
     : cart.totalCartPrice;
 
-  const totalOrderPrice = cartPrice + taxPrice + shippingPrice;
   // 3) Create checkout session
   const session = await stripe.checkout.sessions.create({
     line_items: [
@@ -141,16 +138,16 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
           product_data: {
             name: req.user.name,
           },
-          unit_amount: totalOrderPrice * 100,
+          unit_amount: cartPrice * 100,
         },
         quantity: 1,
       },
     ],
     mode: 'payment',
-     success_url: `${req.protocol}://${req.get('host')}/user/allorders`,
-    //success_url: `https://reactapp-red-kappa.vercel.app/user/allorders`,
-     cancel_url: `${req.protocol}://${req.get('host')}/cart`,
-    //cancel_url: `https://reactapp-red-kappa.vercel.app/cart`,
+     //success_url: `${req.protocol}://${req.get('host')}/user/allorders`,
+    success_url: `https://reactapp-red-kappa.vercel.app/user/allorders`,
+     //cancel_url: `${req.protocol}://${req.get('host')}/cart`,
+    cancel_url: `https://reactapp-red-kappa.vercel.app/cart`,
     customer_email: req.user.email,
     client_reference_id: req.params.cartId,
     metadata: req.body.shippingAddress,
