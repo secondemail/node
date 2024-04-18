@@ -204,12 +204,16 @@ const createOrderCheckout = async (session) => {
 // @route   PUT /webhook-checkout
 // @access  From stripe
 exports.webhookCheckout = (req, res, next) => {
-  const signature = req.headers['stripe-signature'];
+  const signature = req.headers['stripe-signature'].toString();
+  const header = stripe.webhooks.generateTestHeaderString({
+  JSON.stringify(req.body),
+  process.env.STRIPE_WEBHOOK_SECRET,
+});
   let event;
   try {
     event = stripe.webhooks.constructEvent(
-      req.body,
-      signature,
+      JSON.stringify(req.body),
+      header,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
