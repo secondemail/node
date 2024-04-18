@@ -205,12 +205,13 @@ const createOrderCheckout = async (session) => {
 // @access  From stripe
 exports.webhookCheckout = (req, res, next) => {
   const signature = req.headers['stripe-signature'].toString();
+  const endpointSecret = "we_1P6rdnP56Eqd8RVAqClg2qpt";
   let event;
   try {
     event = stripe.webhooks.constructEvent(
       req.body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET
+      endpointSecret
     );
   } catch (err) {
     return res.status(400).send(`Webhook error: ${err.message}`);
