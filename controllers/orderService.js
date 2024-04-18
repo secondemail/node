@@ -116,6 +116,8 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 // @route   GET /api/orders/:cartId
 // @access  Private/User
 exports.checkoutSession = asyncHandler(async (req, res, next) => {
+    const taxPrice = 0;
+    const shippingPrice = 0;
   // 1) Get the currently cart
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
@@ -129,6 +131,7 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     ? cart.totalAfterDiscount
     : cart.totalCartPrice;
 
+  const totalOrderPrice = cartPrice + taxPrice + shippingPrice;
   // 3) Create checkout session
   const session = await stripe.checkout.sessions.create({
     line_items: [
@@ -138,16 +141,16 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
           product_data: {
             name: req.user.name,
           },
-          unit_amount: cartPrice * 100,
+          unit_amount: totalOrderPrice * 100,
         },
         quantity: 1,
       },
     ],
     mode: 'payment',
-    // success_url: `${req.protocol}://${req.get('host')}/orders`,
-    success_url: `https://reactapp-red-kappa.vercel.app/user/allorders`,
-    // cancel_url: `${req.protocol}://${req.get('host')}/cart`,
-    cancel_url: `https://reactapp-red-kappa.vercel.app/cart`,
+     success_url: `${req.protocol}://${req.get('host')}/user/allorders`,
+    //success_url: `https://reactapp-red-kappa.vercel.app/user/allorders`,
+     cancel_url: `${req.protocol}://${req.get('host')}/cart`,
+    //cancel_url: `https://reactapp-red-kappa.vercel.app/cart`,
     customer_email: req.user.email,
     client_reference_id: req.params.cartId,
     metadata: req.body.shippingAddress,
@@ -196,7 +199,7 @@ const createOrderCheckout = async (session) => {
     await Product.bulkWrite(bulkOption, {});
 
     // 5) Clear cart
-    await Cart.findByIdAndDelete(cart._id);
+    await Cart.findByIdAndDelete(cartId);
   }
 };
 
@@ -204,14 +207,13 @@ const createOrderCheckout = async (session) => {
 // @route   PUT /webhook-checkout
 // @access  From stripe
 exports.webhookCheckout = (req, res, next) => {
-  const signature = req.headers['stripe-signature'].toString();
-  const endpointSecret = "we_1P6rdnP56Eqd8RVAqClg2qpt";
+  const signature = req.headers['stripe-signature'];
   let event;
   try {
     event = stripe.webhooks.constructEvent(
       req.body,
       signature,
-      endpointSecret
+      process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
     return res.status(400).send(`Webhook error: ${err.message}`);
